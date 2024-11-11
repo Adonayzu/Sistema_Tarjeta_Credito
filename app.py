@@ -7,9 +7,7 @@ import os
 
 #esta es la base para la api
 app = Flask(__name__) # se inicializo flask y se le paso el nombre de la aplicacion
-# diccionario de estudiantes
-# estudiantes = {}
-# identificador_estudiante = 1
+
 
 
 @app.route('/' , methods=['GET'])
