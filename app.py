@@ -9,11 +9,7 @@ import uuid
 # Realizar un cargo a la tarjeta de crédito
 from decimal import Decimal
 
-<<<<<<< HEAD
 app = Flask(__name__)
-=======
-app = Flask(_name_)
->>>>>>> 00a25893c5df4dff56327a621078d92b64d3e9ec
 
 # Conexión a la base de datos
 conexion_bd = {
@@ -46,34 +42,6 @@ def obtener_health():
     return jsonify({'status': 'ok', 'container': id_contenedor}), 200
 
 
-<<<<<<< HEAD
-# Actualizar la información de una tarjeta de crédito específica mediante el pan
-@app.route('/tarjeta-credito/<string:numero_tarjeta>', methods=['PUT'])
-def actualizar_tarjeta_credito(numero_tarjeta):
-    body = request.get_json()  # Obtener el cuerpo del request como JSON
-
-    if not body or 'limite_credito' not in body or 'saldo_actual' not in body:
-        abort(400, "Datos faltantes en el request")  # 400 es bad request
-
-    try:
-        conexion = mysql.connector.connect(**conexion_bd)
-        cursor = conexion.cursor()
-        sql = "UPDATE tarjeta_credito SET limite_credito = %s, saldo_actual = %s WHERE numero_tarjeta = %s"  # Sentencia SQL para actualizar
-        valores = (body['limite_credito'], body['saldo_actual'], numero_tarjeta)  # Valores que se van a actualizar
-        cursor.execute(sql, valores)  # Ejecutar la sentencia SQL
-        conexion.commit()  # Asegurar que se guarden los datos en la base de datos
-
-        # Si no encuentra la tarjeta de crédito
-        if cursor.rowcount == 0:  # Si no se actualizó ningún registro
-            abort(404, "Tarjeta de crédito no encontrada")  # 404 es not found
-
-        # Retornar la tarjeta de crédito actualizada con el número de tarjeta y los nuevos valores en el postman
-        return jsonify({
-            'numero_tarjeta': numero_tarjeta,
-            'limite_credito': body['limite_credito'],
-            'saldo_actual': body['saldo_actual']
-        }), 200  # 200 es OK, se ejecutó correctamente
-=======
 # para crear tarjeta de crédito se necesita nombre, apellido, edad, dirección, datos laborales, datos beneficiarios, dpi y límite de crédito
 @app.route('/tarjeta-credito', methods=['POST'])
 def crear_tarjeta():
@@ -122,7 +90,6 @@ def crear_tarjeta():
             'limite_credito': limite_credito,
             'replica_id': id_contenedor
         }), 201
->>>>>>> 00a25893c5df4dff56327a621078d92b64d3e9ec
 
     except Error as e:
         print(f"Error al conectar a MySQL: {e}")
@@ -131,7 +98,93 @@ def crear_tarjeta():
     finally:
         cursor.close() # Cerrar el cursor
         conexion.close() # Cerrar la conexión
-<<<<<<< HEAD
+
+
+# Ontener la información de todas las tarjetas de crédito registradas
+@app.route('/tarjeta-credito', methods=['GET'])
+def obtener_tarjetas_credito():
+    try:
+        # Conexión a la base de datos
+        conexion = mysql.connector.connect(**conexion_bd)
+        # Crear un cursor para ejecutar sentencias SQL
+        cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
+        sql = "SELECT * FROM tarjeta_credito" # Sentencia SQL para obtener todas las tarjetas de crédito
+        cursor.execute(sql)  # Ejecutar la sentencia SQL
+        tarjetas_credito = cursor.fetchall()  # Traer todos los registros
+
+        # Retornar las tarjetas de crédito
+        return jsonify(tarjetas_credito), 200  # 200 es OK, se ejecutó correctamente
+
+    except Error as e:
+        print(f"Error al conectar a MySQL: {e}")
+        abort(500, "Error al conectar a la base de datos")
+
+    finally:
+        cursor.close()  # Cerrar el cursor
+        conexion.close()  # Cerrar la conexión
+
+
+# Obtener la información de una tarjeta de crédito específica mediante el pan
+@app.route('/tarjeta-credito/<string:numero_tarjeta>', methods=['GET'])
+def obtener_tarjeta_credito(numero_tarjeta):
+    try:
+        # Conexión a la base de datos
+        conexion = mysql.connector.connect(**conexion_bd)
+        cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
+        sql = "SELECT * FROM tarjeta_credito WHERE numero_tarjeta = %s" # Sentencia SQL para obtener una tarjeta de crédito específica
+        cursor.execute(sql, (numero_tarjeta,))  # Ejecutar la sentencia SQL con el parámetro
+        tarjeta_credito = cursor.fetchone()  # Traer el registro encontrado
+
+        # Si no encuentra la tarjeta de crédito
+        if not tarjeta_credito:
+            abort(404, "Tarjeta de crédito no encontrada")
+
+        # Retornar la tarjeta de crédito encontrada
+        return jsonify(tarjeta_credito), 200  # 200 es OK, se ejecutó correctamente
+
+    except Error as e:
+        print(f"Error al conectar a MySQL: {e}")
+        abort(500, "Error al conectar a la base de datos")
+
+    finally:
+        cursor.close()  # Cerrar el cursor
+        conexion.close()  # Cerrar la conexión
+
+
+# Actualizar la información de una tarjeta de crédito específica mediante el pan
+@app.route('/tarjeta-credito/<string:numero_tarjeta>', methods=['PUT'])
+def actualizar_tarjeta_credito(numero_tarjeta):
+    body = request.get_json()  # Obtener el cuerpo del request como JSON
+
+    if not body or 'limite_credito' not in body or 'saldo_actual' not in body:
+        abort(400, "Datos faltantes en el request")  # 400 es bad request
+
+    try:
+        conexion = mysql.connector.connect(**conexion_bd)
+        cursor = conexion.cursor()
+        sql = "UPDATE tarjeta_credito SET limite_credito = %s, saldo_actual = %s WHERE numero_tarjeta = %s"  # Sentencia SQL para actualizar
+        valores = (body['limite_credito'], body['saldo_actual'], numero_tarjeta)  # Valores que se van a actualizar
+        cursor.execute(sql, valores)  # Ejecutar la sentencia SQL
+        conexion.commit()  # Asegurar que se guarden los datos en la base de datos
+
+        # Si no encuentra la tarjeta de crédito
+        if cursor.rowcount == 0:  # Si no se actualizó ningún registro
+            abort(404, "Tarjeta de crédito no encontrada")  # 404 es not found
+
+        # Retornar la tarjeta de crédito actualizada con el número de tarjeta y los nuevos valores en el postman
+        return jsonify({
+            'numero_tarjeta': numero_tarjeta,
+            'limite_credito': body['limite_credito'],
+            'saldo_actual': body['saldo_actual']
+        }), 200  # 200 es OK, se ejecutó correctamente
+
+    except Error as e:
+        print(f"Error al conectar a MySQL: {e}")
+        abort(500, "Error al conectar a la base de datos")
+
+    finally:
+        cursor.close() # Cerrar el cursor
+        conexion.close() # Cerrar la conexión
 
 
 # Eliminar una tarjeta de crédito específica mediante el pan
@@ -209,63 +262,4 @@ def obtener_balance_tarjeta(numero_tarjeta):
 
 
 if __name__ == '__main__':
-=======
-
-
-# Ontener la información de todas las tarjetas de crédito registradas
-@app.route('/tarjeta-credito', methods=['GET'])
-def obtener_tarjetas_credito():
-    try:
-        # Conexión a la base de datos
-        conexion = mysql.connector.connect(**conexion_bd)
-        # Crear un cursor para ejecutar sentencias SQL
-        cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
-        sql = "SELECT * FROM tarjeta_credito" # Sentencia SQL para obtener todas las tarjetas de crédito
-        cursor.execute(sql)  # Ejecutar la sentencia SQL
-        tarjetas_credito = cursor.fetchall()  # Traer todos los registros
-
-        # Retornar las tarjetas de crédito
-        return jsonify(tarjetas_credito), 200  # 200 es OK, se ejecutó correctamente
-
-    except Error as e:
-        print(f"Error al conectar a MySQL: {e}")
-        abort(500, "Error al conectar a la base de datos")
-
-    finally:
-        cursor.close()  # Cerrar el cursor
-        conexion.close()  # Cerrar la conexión
-
-
-# Obtener la información de una tarjeta de crédito específica mediante el pan
-@app.route('/tarjeta-credito/<string:numero_tarjeta>', methods=['GET'])
-def obtener_tarjeta_credito(numero_tarjeta):
-    try:
-        # Conexión a la base de datos
-        conexion = mysql.connector.connect(**conexion_bd)
-        cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
-        sql = "SELECT * FROM tarjeta_credito WHERE numero_tarjeta = %s" # Sentencia SQL para obtener una tarjeta de crédito específica
-        cursor.execute(sql, (numero_tarjeta,))  # Ejecutar la sentencia SQL con el parámetro
-        tarjeta_credito = cursor.fetchone()  # Traer el registro encontrado
-
-        # Si no encuentra la tarjeta de crédito
-        if not tarjeta_credito:
-            abort(404, "Tarjeta de crédito no encontrada")
-
-        # Retornar la tarjeta de crédito encontrada
-        return jsonify(tarjeta_credito), 200  # 200 es OK, se ejecutó correctamente
-
-    except Error as e:
-        print(f"Error al conectar a MySQL: {e}")
-        abort(500, "Error al conectar a la base de datos")
-
-    finally:
-        cursor.close()  # Cerrar el cursor
-        conexion.close()  # Cerrar la conexión
-
-
-
-
-
-if _name_ == '_main_':
->>>>>>> 00a25893c5df4dff56327a621078d92b64d3e9ec
     app.run(host='0.0.0.0', port=5000, debug=True)
