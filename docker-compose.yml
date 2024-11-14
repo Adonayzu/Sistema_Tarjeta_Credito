@@ -1,16 +1,21 @@
 version: '3'
 
 services:
-  proyecto-tarjeta-credito:
+  proyecto-tarjeta-credito: # Nombre del servicio
     build: .
-    environment:
-      - PORT=5000
+    environment: # Variables de entorno
+      - PORT=5000 # Variable de entorno
     deploy:
       replicas: 3
     networks:
       - red-sistema-tarjeta-credito
+    depends_on:
+      rabbitmq-tarjeta: # Nombre del servicio
+        condition: service_healthy # Condición para verificar la salud del contenedor que este corriendo el servicio
+      mysql-tarjeta-credito:  # Nombre del servicio
+        condition: service_healthy  # Condición para verificar la salud del contenedor que este corriendo el servicio
 
-  nginx-proyecto-tarjeta-credito:
+  nginx-proyecto-tarjeta-credito: # Nombre del servicio
     build: nginx/
     container_name: nginx-tarjeta-credito-container
     ports:
@@ -20,8 +25,24 @@ services:
     depends_on:
       - proyecto-tarjeta-credito
 
+  rabbitmq-tarjeta: #
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq-tarjeta-container
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ] # Comando para verificar la salud del contenedor
+      interval: 10s # Intervalo de tiempo entre cada prueba
+      timeout: 5s # Tiempo de espera para cada prueba
+      retries: 5 # Número de intentos
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data_tarjeta_credito:/var/lib/rabbitmq # Volumen para almacenar los datos del contenedor
+      - rabbitmq_logs_tarjeta_credito:/var/log/rabbitmq # Volumen para almacenar los logs del contenedor
+    networks:
+      - red-sistema-tarjeta-credito
 
-  mysql-tarjeta-credito:
+  mysql-tarjeta-credito: # Nombre del servicio
     image: mysql
     container_name: mysql-sistema-tarjeta-container
     environment:
@@ -29,21 +50,25 @@ services:
       MYSQL_DATABASE: sistema_tarjeta_credito
       MYSQL_USER: adonay
       MYSQL_PASSWORD: 12345
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ] # Comando para verificar la salud del contenedor
+      interval: 10s # Intervalo de tiempo entre cada prueba
+      timeout: 5s # Tiempo de espera para cada prueba
+      retries: 5 # Número de intentos
     ports:
       - "3306:3306"
     volumes:
       - mysql-proyecto:/var/lib/mysql
     networks:
       - red-sistema-tarjeta-credito
-    #depends_on:
-     # - rabbitmq-soporte
-
 
 
 
 
 volumes:
   mysql-proyecto:
+  rabbitmq_data_tarjeta_credito:
+  rabbitmq_logs_tarjeta_credito:
 
 
 networks:
