@@ -10,10 +10,10 @@ services:
     networks:
       - red-sistema-tarjeta-credito
     depends_on:
-      rabbitmq-tarjeta: # Nombre del servicio
-        condition: service_healthy # Condición para verificar la salud del contenedor que este corriendo el servicio
-      mysql-tarjeta-credito:  # Nombre del servicio
-        condition: service_healthy  # Condición para verificar la salud del contenedor que este corriendo el servicio
+      rabbitmq-tarjeta: # Nombre del servicio para el cual se va a verificar la salud del contenedor
+        condition: service_healthy # sirve para verificar que el contenedor este corriendo el servicio y este saludable porque si no esta saludable no se puede conectar a la cola
+      mysql-tarjeta:  # Nombre del servicio
+        condition: service_healthy  # sirve para verificar que el contenedor este corriendo el servicio y este saludable porque si no esta saludable no se puede conectar a la base de datos
 
   nginx-proyecto-tarjeta-credito: # Nombre del servicio
     build: nginx/
@@ -23,14 +23,14 @@ services:
     networks:
       - red-sistema-tarjeta-credito
     depends_on:
-      - proyecto-tarjeta-credito
+      - proyecto-tarjeta-credito # dependencia del servicio proyecto-tarjeta-credito
 
   rabbitmq-tarjeta: #
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq-tarjeta-container
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ] # Comando para verificar la salud del contenedor
-      interval: 10s # Intervalo de tiempo entre cada prueba
+      interval: 10s # Intervalo de tiempo entre cada prueba de salud del contenedor
       timeout: 5s # Tiempo de espera para cada prueba
       retries: 5 # Número de intentos
     ports:
@@ -42,13 +42,13 @@ services:
     networks:
       - red-sistema-tarjeta-credito
 
-  mysql-tarjeta-credito: # Nombre del servicio
+  mysql-tarjeta: # Nombre del servicio
     image: mysql
     container_name: mysql-sistema-tarjeta-container
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: sistema_tarjeta_credito
-      MYSQL_USER: adonay
+      MYSQL_DATABASE: sistema_tarjeta
+      MYSQL_USER: proyecto
       MYSQL_PASSWORD: 12345
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ] # Comando para verificar la salud del contenedor
@@ -58,20 +58,33 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql-proyecto:/var/lib/mysql
+      - mysql-proyecto-tarjeta-credito:/var/lib/mysql # Volumen para almacenar los datos del contenedor
     networks:
       - red-sistema-tarjeta-credito
 
-
+  consumidor-tarjeta: # Nombre del servicio
+    build: ./consumidor           # Apunta a la carpeta 'cola'
+    container_name: consumidor-tarjeta-container
+    environment:
+      - port=5001
+    ports:
+      - "5001:5001"
+    networks:
+      - red-sistema-tarjeta-credito
+    depends_on:
+      mysql-tarjeta:  # Nombre del servicio para el cual se va a verificar la salud del contenedor
+        condition: service_healthy # sirve para verificar que el contenedor este corriendo el servicio y este saludable porque si no esta saludable no se puede conectar a la base de datos
+      rabbitmq-tarjeta:
+        condition: service_healthy # sirve para verificar que el contenedor este corriendo el servicio y este saludable porque si no esta saludable no se puede conectar a la cola
 
 
 volumes:
-  mysql-proyecto:
-  rabbitmq_data_tarjeta_credito:
-  rabbitmq_logs_tarjeta_credito:
+  mysql-proyecto-tarjeta-credito: # Volumen para almacenar los datos del contenedor
+  rabbitmq_data_tarjeta_credito: # Volumen para almacenar los datos del contenedor
+  rabbitmq_logs_tarjeta_credito: # Volumen para almacenar los logs del contenedor
 
 
 networks:
-  red-sistema-tarjeta-credito:
+  red-sistema-tarjeta-credito: # Nombre de la red
     driver: bridge
 
