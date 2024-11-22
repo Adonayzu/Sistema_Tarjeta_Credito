@@ -306,7 +306,59 @@ def realizar_cargo(numero_tarjeta):
         conexion.close() # Cerrar la conexión
 
 
+# Realizar un abono a la tarjeta de crédito
+@app.route('/tarjeta-credito/abono/<string:numero_tarjeta>', methods=['POST'])
+def realizar_abono(numero_tarjeta):
+    data = request.get_json() # Obtener el cuerpo del request como JSON
+    monto = data.get('monto') # Obtener el monto del abono
 
+    try:
+        # Conexión a la base de datos
+        conexion = mysql.connector.connect(**conexion_bd)
+        cursor = conexion.cursor(dictionary=True)
+
+        # Obtener el saldo actual de la tarjeta de crédito
+        sql = "SELECT id, saldo_actual, cliente_id FROM tarjeta_credito WHERE numero_tarjeta = %s" # Sentencia SQL para obtener el saldo actual
+        cursor.execute(sql, (numero_tarjeta,)) # Ejecutar la sentencia SQL con el parámetro
+        tarjeta_credito = cursor.fetchone() # Traer el primer registro encontrado para obtener el saldo actual
+
+        if not tarjeta_credito:
+            abort(404, "Tarjeta de crédito no encontrada")
+
+        # Obtener el número de teléfono del cliente
+        sql = "SELECT numero_telefono FROM cliente WHERE id = %s" # Sentencia SQL para obtener el número de teléfono
+        cursor.execute(sql, (tarjeta_credito['cliente_id'],)) # Ejecutar la sentencia SQL con el parámetro para obtener el número de teléfono
+        numero_telefono = cursor.fetchone()['numero_telefono'] # Traer el primer registro encontrado para obtener el número de teléfono
+
+        # Actualizar el saldo de la tarjeta de crédito
+        nuevo_saldo = tarjeta_credito['saldo_actual'] - Decimal(monto) # Nuevo saldo es el saldo actual menos el monto del abono
+        sql_update = "UPDATE tarjeta_credito SET saldo_actual = %s WHERE numero_tarjeta = %s" # Sentencia SQL para actualizar el saldo
+        cursor.execute(sql_update, (nuevo_saldo, numero_tarjeta))   # Ejecutar la sentencia SQL con los parámetros para actualizar el saldo
+        conexion.commit() # Asegurar que se guarden los datos en la base de datos
+
+        # Insertar la transacción en la tabla transaccion
+        sql_transaccion = "INSERT INTO transaccion (tarjeta_id, tipo, monto) VALUES (%s, %s, %s)" # Sentencia
+        cursor.execute(sql_transaccion, (tarjeta_credito['id'], 'ABONO', monto))    # Ejecutar la sentencia SQL con los parámetros para insertar la transacción
+        conexion.commit() # Asegurar que se guarden los datos en la base de datos
+
+        # Enviar mensaje a la cola de RabbitMQ
+        mensaje = json.dumps({ # Convertir el mensaje a JSON
+            'numero_tarjeta': numero_tarjeta,
+            'monto': monto,
+            'tipo': 'abono',
+            'numero_telefono': numero_telefono
+        })
+        canal.basic_publish(exchange='', routing_key='cola-tarjeta', body=mensaje) # Publicar el mensaje en la cola de RabbitMQ
+
+        return jsonify({'mensaje': 'Abono realizado correctamente'}), 200 # 200 es OK, se ejecutó correctamente
+
+    except Error as e:
+        print(f"Error al conectar a MySQL: {e}")
+        abort(500, "Error al conectar a la base de datos")
+
+    finally:
+        cursor.close() # Cerrar el cursor
+        conexion.close() # Cerrar la conexión
 
 
 if __name__ == '__main__': # Si se ejecuta este archivo
