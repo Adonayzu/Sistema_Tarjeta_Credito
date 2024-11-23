@@ -12,7 +12,7 @@ app = Flask(__name__)
 # Conexión a la base de datos
 conexion_bd = {
     'host': 'mysql-tarjeta',
-    'database': 'sistema_tarjeta',
+    'database': 'bd-tarjeta',
     'user': 'proyecto',
     'password': '12345',
     'port': 3306
@@ -41,7 +41,7 @@ def crear_tarjeta():
 
     if not body or not all(key in body for key in
        ['nombre', 'apellido', 'edad', 'direccion', 'datos_laborales', 'datos_beneficiarios', 'dpi', 'limite_credito', 'numero_telefono']):
-        abort(400, "Datos faltantes en el request")
+        abort(400, "Datos faltantes en el request") # 400 es bad request quiere decir que el request no se puede procesar
 
     # Generar número de tarjeta de crédito aleatorio que empieza con 6800
     numero_tarjeta = '6800' + ''.join([str(random.randint(0, 9)) for _ in range(12)])
@@ -52,12 +52,12 @@ def crear_tarjeta():
         # Conexión a la base de datos
         conexion = mysql.connector.connect(**conexion_bd)
         # Crear un cursor para ejecutar sentencias SQL
-        cursor = conexion.cursor()
+        cursor = conexion.cursor() #cursor es un objeto que permite interactuar con la base de datos
 
         # Verificar si el DPI ya tiene una tarjeta asociada
         cursor.execute("SELECT COUNT(*) FROM cliente WHERE dpi = %s", (body['dpi'],))  # Contar cuántos registros hay con el DPI
         if cursor.fetchone()[0] > 0:  # Si ya existe un cliente con el DPI
-            abort(400, "El cliente ya tiene una tarjeta de crédito asignada")
+            abort(400, "El cliente ya tiene una tarjeta de crédito asignada") # 400 es bad request
 
         # Insertar nuevo cliente en la base de datos
         sql_cliente = "INSERT INTO cliente (nombre, apellido, edad, direccion, datos_laborales, datos_beneficiarios, dpi, numero_telefono) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
@@ -103,7 +103,7 @@ def obtener_tarjetas_credito():
         cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
         sql = "SELECT * FROM tarjeta_credito" # Sentencia SQL para obtener todas las tarjetas de crédito
         cursor.execute(sql)  # Ejecutar la sentencia SQL
-        tarjetas_credito = cursor.fetchall()  # Traer todos los registros
+        tarjetas_credito = cursor.fetchall()  # Traer todos los registros o todas las filas encontradas de tarjetas de credito y las devuelve en una lista
 
         # Retornar las tarjetas de crédito
         return jsonify(tarjetas_credito), 200  # 200 es OK, se ejecutó correctamente
@@ -126,7 +126,7 @@ def obtener_tarjeta_credito(numero_tarjeta):
         cursor = conexion.cursor(dictionary=True)  # Devolver los resultados como un diccionario para que sea más fácil de manipular
         sql = "SELECT * FROM tarjeta_credito WHERE numero_tarjeta = %s" # Sentencia SQL para obtener una tarjeta de crédito específica
         cursor.execute(sql, (numero_tarjeta,))  # Ejecutar la sentencia SQL con el parámetro
-        tarjeta_credito = cursor.fetchone()  # Traer el registro encontrado
+        tarjeta_credito = cursor.fetchone()  # Traer un solo registro encontradoo fila de la tabla tarjeta_credito y la devuelve como un diccionario
 
         # Si no encuentra la tarjeta de crédito
         if not tarjeta_credito:
@@ -161,7 +161,7 @@ def actualizar_tarjeta_credito(numero_tarjeta):
         conexion.commit()  # Asegurar que se guarden los datos en la base de datos
 
         # Si no encuentra la tarjeta de crédito
-        if cursor.rowcount == 0:  # Si no se actualizó ningún registro
+        if cursor.rowcount == 0:  # Si no se actualizó ningún registro el rowcount es 0 porque no encontró la tarjeta de crédito y si es mayor a 0 es porque se actualizó
             abort(404, "Tarjeta de crédito no encontrada")  # 404 es not found
 
         # Retornar la tarjeta de crédito actualizada con el número de tarjeta y los nuevos valores en el postman
@@ -251,6 +251,7 @@ def obtener_balance_tarjeta(numero_tarjeta):
         conexion.close()  # Cerrar la conexión
 
 
+
 # Realizar un cargo a la tarjeta de crédito
 @app.route('/tarjeta-credito/procesamiento/<string:numero_tarjeta>', methods=['POST'])
 def realizar_cargo(numero_tarjeta):
@@ -291,7 +292,8 @@ def realizar_cargo(numero_tarjeta):
             'numero_tarjeta': numero_tarjeta,
             'monto': monto,
             'tipo': 'cargo',
-            'numero_telefono': numero_telefono
+            'numero_telefono': numero_telefono,
+            'mensaje': f'Se ha realizado un cargo a su tarjeta {numero_tarjeta} por Q{monto:.2f}'
         })
         canal.basic_publish(exchange='', routing_key='cola-tarjeta', body=mensaje) # Publicar el mensaje en la cola de RabbitMQ
 
@@ -305,8 +307,60 @@ def realizar_cargo(numero_tarjeta):
         cursor.close() # Cerrar el cursor
         conexion.close() # Cerrar la conexión
 
+# Realizar un abono a la tarjeta de crédito
+@app.route('/tarjeta-credito/abono/<string:numero_tarjeta>', methods=['POST'])
+def realizar_abono(numero_tarjeta):
+    data = request.get_json() # Obtener el cuerpo del request como JSON
+    monto = data.get('monto') # Obtener el monto del abono
 
+    try:
+        # Conexión a la base de datos
+        conexion = mysql.connector.connect(**conexion_bd)
+        cursor = conexion.cursor(dictionary=True)
 
+        # Obtener el saldo actual de la tarjeta de crédito
+        sql = "SELECT id, saldo_actual, cliente_id FROM tarjeta_credito WHERE numero_tarjeta = %s" # Sentencia SQL para obtener el saldo actual
+        cursor.execute(sql, (numero_tarjeta,)) # Ejecutar la sentencia SQL con el parámetro
+        tarjeta_credito = cursor.fetchone() # Traer el primer registro encontrado para obtener el saldo actual
+
+        if not tarjeta_credito:
+            abort(404, "Tarjeta de crédito no encontrada")
+
+        # Obtener el número de teléfono del cliente
+        sql = "SELECT numero_telefono FROM cliente WHERE id = %s" # Sentencia SQL para obtener el número de teléfono
+        cursor.execute(sql, (tarjeta_credito['cliente_id'],)) # Ejecutar la sentencia SQL con el parámetro para obtener el número de teléfono
+        numero_telefono = cursor.fetchone()['numero_telefono'] # Traer el primer registro encontrado para obtener el número de teléfono
+
+        # Actualizar el saldo de la tarjeta de crédito
+        nuevo_saldo = tarjeta_credito['saldo_actual'] - Decimal(monto) # Nuevo saldo es el saldo actual menos el monto del abono
+        sql_update = "UPDATE tarjeta_credito SET saldo_actual = %s WHERE numero_tarjeta = %s" # Sentencia SQL para actualizar el saldo
+        cursor.execute(sql_update, (nuevo_saldo, numero_tarjeta))   # Ejecutar la sentencia SQL con los parámetros para actualizar el saldo
+        conexion.commit() # Asegurar que se guarden los datos en la base de datos
+
+        # Insertar la transacción en la tabla transaccion
+        sql_transaccion = "INSERT INTO transaccion (tarjeta_id, tipo, monto) VALUES (%s, %s, %s)" # Sentencia
+        cursor.execute(sql_transaccion, (tarjeta_credito['id'], 'ABONO', monto))    # Ejecutar la sentencia SQL con los parámetros para insertar la transacción
+        conexion.commit() # Asegurar que se guarden los datos en la base de datos
+
+        # Enviar mensaje a la cola de RabbitMQ
+        mensaje = json.dumps({ # Convertir el mensaje a JSON
+            'numero_tarjeta': numero_tarjeta,
+            'monto': monto,
+            'tipo': 'abono',
+            'numero_telefono': numero_telefono,
+            'mensaje': f'Se ha realizado un abono a su tarjeta {numero_tarjeta} por Q{monto:.2f}'
+        })
+        canal.basic_publish(exchange='', routing_key='cola-tarjeta', body=mensaje) # Publicar el mensaje en la cola de RabbitMQ
+
+        return jsonify({'mensaje': 'Abono realizado correctamente'}), 200 # 200 es OK, se ejecutó correctamente
+
+    except Error as e:
+        print(f"Error al conectar a MySQL: {e}")
+        abort(500, "Error al conectar a la base de datos")
+
+    finally:
+        cursor.close() # Cerrar el cursor
+        conexion.close() # Cerrar la conexión
 
 
 if __name__ == '__main__': # Si se ejecuta este archivo

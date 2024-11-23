@@ -47,7 +47,7 @@ services:
     container_name: mysql-sistema-tarjeta-container
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: sistema_tarjeta
+      MYSQL_DATABASE: bd-tarjeta
       MYSQL_USER: proyecto
       MYSQL_PASSWORD: 12345
     healthcheck:
@@ -58,7 +58,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql-proyecto-tarjeta-credito:/var/lib/mysql # Volumen para almacenar los datos del contenedor
+      - mysql-project-tarjeta-credito:/var/lib/mysql # Volumen para almacenar los datos del contenedor
     networks:
       - red-sistema-tarjeta-credito
 
@@ -79,7 +79,7 @@ services:
 
 
 volumes:
-  mysql-proyecto-tarjeta-credito: # Volumen para almacenar los datos del contenedor
+  mysql-project-tarjeta-credito: # Volumen para almacenar los datos del contenedor
   rabbitmq_data_tarjeta_credito: # Volumen para almacenar los datos del contenedor
   rabbitmq_logs_tarjeta_credito: # Volumen para almacenar los logs del contenedor
 
