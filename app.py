@@ -358,6 +358,7 @@ def realizar_abono(numero_tarjeta):
         print(f"Error al conectar a MySQL: {e}")
         abort(500, "Error al conectar a la base de datos")
 
+
     finally:
         cursor.close() # Cerrar el cursor
         conexion.close() # Cerrar la conexión
